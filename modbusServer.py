@@ -12,7 +12,7 @@ PORT = 502
 
 # Definisikan route atau endpoint untuk membaca data dari Modbus
 @app.route('/read_input_register/<int:unit_id>', methods=['GET'])
-def read_input_register_1(unit_id):
+def read_input_register(unit_id):
     try:
         client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
         
