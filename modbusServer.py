@@ -10,6 +10,13 @@ app = Flask(__name__)
 HOST = '192.168.1.229'
 PORT = 502
 
+# Daftar fungsi dan alamat register yang sesuai
+FUNCTIONS = {
+    "ON/OFF Setting": 0,
+    "Water Inlet Temperature In Cooling Mode": 2,
+    "Water Outlet Temperature Setting In Cooling Mode": 21
+}
+
 # Definisikan route atau endpoint untuk membaca data dari Modbus
 @app.route('/read_input_register/<int:unit_id>', methods=['GET'])
 def read_input_register(unit_id):
@@ -39,7 +46,7 @@ def read_input_register(unit_id):
             print("Gagal membaca data dari perangkat Modbus.")
             data_json = json.dumps({})  # Data kosong jika gagal
             
-        result = client.read_input_registers(5002, 1)
+        result = client.read_input_registers(5001, 1)
         if result:
             print("Data yang dibaca dari perangkat Modbus:", result)
             # Menambahkan penamaan untuk setiap elemen dalam array
@@ -52,7 +59,7 @@ def read_input_register(unit_id):
             data_json = json.dumps({})  # Data kosong jika gagal
         
         
-        result = client.read_input_registers(5006, 1)
+        result = client.read_input_registers(5005, 1)
         if result:
             named_data.update({
                 "Water Outlet Temperature Setting In Cooling Mode": result[0]
@@ -61,7 +68,7 @@ def read_input_register(unit_id):
             print("Gagal membaca data dari perangkat Modbus.")
             data_json = json.dumps({})  # Data kosong jika gagal
         
-        result = client.read_input_registers(5011, 1)
+        result = client.read_input_registers(5010, 1)
         if result:
             named_data.update({
                 "Compressor Output Ratio": result[0]
@@ -87,7 +94,7 @@ def read_holding_register(unit_id):
         
         # Lakukan operasi pembacaan data
         # client.write_single_register(2,120)
-        result = client.read_holding_registers(1, 5)
+        result = client.read_holding_registers(0, 5)
         named_data = {}
         if result:
             print("Data yang dibaca dari perangkat Modbus:", result)
@@ -105,7 +112,7 @@ def read_holding_register(unit_id):
             print("Gagal membaca data dari perangkat Modbus.")
             data_json = json.dumps({})  # Data kosong jika gagal
             
-        result = client.read_holding_registers(22, 2)
+        result = client.read_holding_registers(21, 2)
         if result:
             print("Data yang dibaca dari perangkat Modbus:", result)
             # Menambahkan penamaan untuk setiap elemen dalam array
@@ -127,6 +134,45 @@ def read_holding_register(unit_id):
     except Exception as e:
         print("Error:", str(e))
         return jsonify({"error": str(e)})
-        
+
+@app.route('/write_holding_register/<int:unit_id>', methods=['POST'])
+def write_holding_register(unit_id):
+    try:
+        # Ambil data dari request dalam bentuk JSON
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Data JSON tidak ditemukan."}), 400
+
+        # Pastikan data JSON memiliki kunci "Function" dan "value"
+        if 'Function' not in data or 'value' not in data:
+            return jsonify({"error": "Data JSON harus memiliki 'Function' dan 'value'."}), 400
+
+        function = data['Function']
+        value = data['value']
+
+        # Dapatkan alamat register yang sesuai dari daftar fungsi
+        if function not in FUNCTIONS:
+            return jsonify({"error": f"Fungsi '{function}' tidak valid."}), 400
+
+        address = FUNCTIONS[function]
+
+        # Tulis ke holding register menggunakan ModbusClient
+        modbus_client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
+        if not modbus_client.is_open:  # Ubah menjadi properti, bukan memanggil fungsi
+            if not modbus_client.open():
+                return jsonify({"error": "Tidak dapat terhubung ke perangkat Modbus."}), 500
+
+        if not modbus_client.write_single_register(address, value):
+            return jsonify({"error": "Gagal menulis ke holding register."}), 500
+
+        modbus_client.close()
+
+        return jsonify({
+            "message": f"Berhasil menulis nilai {value} ke fungsi '{function}' pada holding register."
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True)
