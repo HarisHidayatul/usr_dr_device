@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import json
+import math
 
 # Import library untuk Modbus
 from pyModbusTCP.client import ModbusClient
@@ -174,5 +175,39 @@ def write_holding_register(unit_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+@app.route('/read_pressure/<int:unit_id>', methods=['GET'])
+def read_holding_pressure_register(unit_id):
+    try:
+        named_data = {}
+        if unit_id == 1:
+            client = ModbusClient(host=HOST, port=PORT, unit_id=52)
+            # Lakukan operasi pembacaan data
+            result = client.read_holding_registers(0, 3)
+            if result:
+                print("Data yang dibaca dari perangkat Modbus: ", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                # Mengonversi nilai result[0] dari rentang 0-1023 ke rentang 0-600
+                converted_value = math.floor(math.floor(result[0]* 14.5038 * 60 / 1023) * 252/501)
+                named_data.update({
+                    "Pressure 1" : converted_value
+                })
+                converted_value = math.floor(math.floor(result[1]* 14.5038 * 60 / 1023) * 175/289)
+                named_data.update({
+                    "Pressure 2" : converted_value
+                })
+            else:
+                print("Gagal membaca data dari perangkat Modbus.")
+                data_json = json.dumps({})  # Data kosong jika gagal
+            
+            data_json = json.dumps(named_data)
+            client.close()
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID 52",
+                "data": data_json
+            })
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5000)
