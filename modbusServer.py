@@ -22,7 +22,17 @@ FUNCTIONS = {
 @app.route('/read_input_register/<int:unit_id>', methods=['GET'])
 def read_input_register(unit_id):
     try:
-        client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
+        if unit_id > 0 and unit_id < 7:
+            client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
+        elif unit_id == 7:
+            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=2)
+        elif unit_id == 8:
+            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=3)
+        else:
+            return jsonify({
+            "message": f"Error unit id",
+            "data": data_json
+        })
         
         # Lakukan operasi pembacaan data
         # client.write_single_register(2,120)
@@ -91,7 +101,17 @@ def read_input_register(unit_id):
 @app.route('/read_holding_register/<int:unit_id>', methods=['GET'])
 def read_holding_register(unit_id):
     try:
-        client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
+        if unit_id > 0 and unit_id < 7:
+            client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
+        elif unit_id == 7:
+            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=2)
+        elif unit_id == 8:
+            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=3)
+        else:
+            return jsonify({
+            "message": f"Error unit id",
+            "data": data_json
+        })
         
         # Lakukan operasi pembacaan data
         # client.write_single_register(2,120)
@@ -175,64 +195,6 @@ def write_holding_register(unit_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-@app.route('/read_pressure/<int:unit_id>', methods=['GET'])
-def read_holding_pressure_register(unit_id):
-    try:
-        named_data = {}
-        if unit_id == 1:
-            client = ModbusClient(host=HOST, port=PORT, unit_id=52)
-            # Lakukan operasi pembacaan data
-            result = client.read_holding_registers(0, 4)
-            if result:
-                print("Data yang dibaca dari perangkat Modbus: ", result)
-                # Menambahkan penamaan untuk setiap elemen dalam array
-                # Mengonversi nilai result[0] dari rentang 0-1023 ke rentang 0-600
-                converted_value = math.floor(math.floor(result[0]* 14.5038 * 60 / 1023) * 175/501)
-                named_data.update({
-                    "Pressure 1" : converted_value
-                })
-                converted_value = math.floor(math.floor(result[1]* 14.5038 * 60 / 1023) * 252/289)
-                named_data.update({
-                    "Pressure 2" : converted_value
-                })
-                
-                offsetHi = 0.37
-                skalaHi = 217.56
-                offsetLo = 0.37
-                skalaLo = 72.5
-                volt1 = result[0] * 4.5/1023
-                HiPress1=(volt1-offsetHi)*skalaHi
-                named_data.update({
-                    "Hi Press Arduino" : HiPress1
-                })
-                
-                named_data.update({
-                    "Analog 0" : result[0]
-                })
-                
-                named_data.update({
-                    "Analag 1" : result[1]
-                })
-                named_data.update({
-                    "Analog 2" : result[2]
-                })
-                
-                named_data.update({
-                    "Analag 3" : result[3]
-                })
-            else:
-                print("Gagal membaca data dari perangkat Modbus.")
-                data_json = json.dumps({})  # Data kosong jika gagal
-            
-            data_json = json.dumps(named_data)
-            client.close()
-            return jsonify({
-                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID 52",
-                "data": data_json
-            })
-    except Exception as e:
-        print("Error:", str(e))
-        return jsonify({"error": str(e)})
 # Definisikan route atau endpoint untuk membaca data dari Modbus
 @app.route('/read_input_register_ampere/<int:unit_id>', methods=['GET'])
 def read_input_register_ampere(unit_id):
@@ -307,6 +269,40 @@ def read_input_register_ampere(unit_id):
             })
         elif unit_id == 6:
             client = ModbusClient(host="192.168.1.228", port=PORT, unit_id=4)
+            # Lakukan operasi pembacaan data
+            result = client.read_input_registers(0, 2)
+            named_data = {}
+            if result:
+                print("Data yang dibaca dari perangkat Modbus:", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                named_data.update({
+                    "Ampere Meter" : result[0]
+                })
+            data_json = json.dumps(named_data)
+            client.close()            
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                "data": data_json
+            })
+        elif unit_id == 9:
+            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=4)
+            # Lakukan operasi pembacaan data
+            result = client.read_input_registers(0, 2)
+            named_data = {}
+            if result:
+                print("Data yang dibaca dari perangkat Modbus:", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                named_data.update({
+                    "Ampere Meter" : result[0]
+                })
+            data_json = json.dumps(named_data)
+            client.close()            
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                "data": data_json
+            })
+        elif unit_id == 10:
+            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
