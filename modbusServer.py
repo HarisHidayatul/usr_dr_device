@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import json
 import math
+import requests
 
 # Import library untuk Modbus
 from pyModbusTCP.client import ModbusClient
@@ -8,7 +9,19 @@ from pyModbusTCP.client import ModbusClient
 app = Flask(__name__)
 
 # Definisikan host dan port sebagai variabel global
-HOST = '192.168.1.229'
+# HOST_CHILLER_T3_T4_T2 = '192.168.1.229'
+HOST_CHILLER_T3_T4_T2 = '192.168.2.101'
+# HOST_CHILLER_T1_AMP_T1_SND = '192.168.1.219'
+HOST_CHILLER_T1_AMP_T1_SND = '192.168.2.102'
+# PLC_CHILLER_T2 = '192.168.1.243'
+PLC_CHILLER_T2 = '192.168.2.103'
+# AMPERE_T2_T4 = '192.168.1.228'
+AMPERE_T2_T4 = '192.168.2.104'
+
+AMPERE_T3 = '192.168.2.105'
+
+ARDUINO_CHILLER_SOUND = "http://192.168.2.107:80"
+
 PORT = 502
 
 # Daftar fungsi dan alamat register yang sesuai
@@ -23,11 +36,51 @@ FUNCTIONS = {
 def read_input_register(unit_id):
     try:
         if unit_id > 0 and unit_id < 7:
-            client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
+            client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id)
         elif unit_id == 7:
-            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=2)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=2)
         elif unit_id == 8:
-            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=3)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=3)
+        elif unit_id == 9:
+            response = requests.get(ARDUINO_CHILLER_SOUND)
+            if response.status_code == 200:
+                named_data = {}
+                data = response.json()
+                named_data.update({
+                    "Unit Fault": 0,
+                    "System 1 Fault": 0,
+                    "System 2 Fault": 0,
+                    "Ambient Air Temperature": 0,
+                    "Water Inlet Temperature": data['suhu1'],
+                    "Water Outlet Temperature": data['suhu2'],
+                    "System 1 and 2 Fault": 0,
+                    "Water Outlet Of Hot Water Side Temperature": 0
+                })
+                data_json = json.dumps(named_data)
+                return jsonify({
+                    "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                    "data": data_json
+                })
+        elif unit_id == 10:
+            response = requests.get(ARDUINO_CHILLER_SOUND)
+            if response.status_code == 200:
+                data = response.json()
+                named_data = {}
+                named_data.update({
+                    "Unit Fault": 0,
+                    "System 1 Fault": 0,
+                    "System 2 Fault": 0,
+                    "Ambient Air Temperature": 0,
+                    "Water Inlet Temperature": data['suhu4'],
+                    "Water Outlet Temperature": data['suhu3'],
+                    "System 1 and 2 Fault": 0,
+                    "Water Outlet Of Hot Water Side Temperature": 0
+                })
+                data_json = json.dumps(named_data)
+                return jsonify({
+                    "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                    "data": data_json
+                })
         else:
             return jsonify({
             "message": f"Error unit id",
@@ -102,11 +155,27 @@ def read_input_register(unit_id):
 def read_holding_register(unit_id):
     try:
         if unit_id > 0 and unit_id < 7:
-            client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
+            client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id)
         elif unit_id == 7:
-            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=2)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=2)
         elif unit_id == 8:
-            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=3)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=3)
+        elif (unit_id == 9) or (unit_id == 10):
+            response = requests.get(ARDUINO_CHILLER_SOUND)
+            if response.status_code == 200:
+                named_data = {}
+                named_data.update({
+                    "ON/OFF Setting": 1,
+                    "Running Mode Setting": 1,
+                    "Water Inlet Temperature In Cooling Mode": 0,
+                    "Water Inlet Temperature In Heating Mode": 0,
+                    "Water Tank Temperature Setting": 0
+                })
+                data_json = json.dumps(named_data)
+                return jsonify({
+                    "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                    "data": data_json
+                })
         else:
             return jsonify({
             "message": f"Error unit id",
@@ -178,7 +247,7 @@ def write_holding_register(unit_id):
         address = FUNCTIONS[function]
 
         # Tulis ke holding register menggunakan ModbusClient
-        modbus_client = ModbusClient(host=HOST, port=PORT, unit_id=unit_id)
+        modbus_client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id)
         if not modbus_client.is_open:  # Ubah menjadi properti, bukan memanggil fungsi
             if not modbus_client.open():
                 return jsonify({"error": "Tidak dapat terhubung ke perangkat Modbus."}), 500
@@ -200,7 +269,7 @@ def write_holding_register(unit_id):
 def read_input_register_ampere(unit_id):
     try:
         if unit_id == 1 or unit_id == 2:
-            client = ModbusClient(host="192.168.1.230", port=PORT, unit_id=unit_id)
+            client = ModbusClient(host=AMPERE_T3, port=PORT, unit_id=unit_id)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -217,7 +286,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 3:
-            client = ModbusClient(host="192.168.1.228", port=PORT, unit_id=1)
+            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=1)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -234,7 +303,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 4:
-            client = ModbusClient(host="192.168.1.228", port=PORT, unit_id=2)
+            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=2)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -251,7 +320,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 5:
-            client = ModbusClient(host="192.168.1.228", port=PORT, unit_id=3)
+            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=3)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -268,7 +337,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 6:
-            client = ModbusClient(host="192.168.1.228", port=PORT, unit_id=4)
+            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=4)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -285,7 +354,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 9:
-            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=4)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=4)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -302,7 +371,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 10:
-            client = ModbusClient(host="192.168.1.219", port=PORT, unit_id=5)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -321,5 +390,31 @@ def read_input_register_ampere(unit_id):
     except Exception as e:
         print("Error:", str(e))
         return jsonify({"error": str(e)})
+    
+# Definisikan route atau endpoint untuk membaca data dari Modbus
+@app.route('/read_water_tank/<int:unit_id>', methods=['GET'])
+def read_level_water_tank(unit_id):
+    try:
+        if unit_id == 3:
+            client = ModbusClient(host=PLC_CHILLER_T2, port=PORT, unit_id=1)
+            # Lakukan operasi pembacaan data
+            result = client.read_holding_registers(60, 10)
+            named_data = {}
+            if result:
+                print("Data yang dibaca dari perangkat Modbus:", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                named_data.update({
+                    "Water Level" : result[0]
+                })
+            data_json = json.dumps(named_data)
+            client.close()            
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                "data": data_json
+            })
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)})
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5000)
