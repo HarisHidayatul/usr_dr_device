@@ -13,8 +13,8 @@ app = Flask(__name__)
 HOST_CHILLER_T3_T4_T2 = '192.168.2.101'
 # HOST_CHILLER_T1_AMP_T1_SND = '192.168.1.219'
 HOST_CHILLER_T1_AMP_T1_SND = '192.168.2.102'
-# PLC_CHILLER_T2 = '192.168.1.243'
-PLC_CHILLER_T2 = '192.168.2.103'
+# PLC_CHILLER_T4 = '192.168.1.243'
+PLC_CHILLER_T4 = '192.168.2.103'
 # AMPERE_T2_T4 = '192.168.1.228'
 AMPERE_T2_T4 = '192.168.2.104'
 
@@ -396,7 +396,7 @@ def read_input_register_ampere(unit_id):
 def read_level_water_tank(unit_id):
     try:
         if unit_id == 3:
-            client = ModbusClient(host=PLC_CHILLER_T2, port=PORT, unit_id=1)
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1)
             # Lakukan operasi pembacaan data
             result = client.read_holding_registers(60, 10)
             named_data = {}
@@ -416,5 +416,59 @@ def read_level_water_tank(unit_id):
         print("Error:", str(e))
         return jsonify({"error": str(e)})
     
+#Definisikan route untuk pembacaan tank level oli
+@app.route('/read_oil_level/<int:unit_id>', methods=['GET'])
+def read_oil_level(unit_id):
+    try:
+        if unit_id == 3:
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1)
+            # Lakukan operasi pembacaan data
+            result = client.read_holding_registers(72, 10)
+            named_data = {}
+            if result:
+                print("Data yang dibaca dari perangkat Modbus:", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                named_data.update({
+                    "Oil Level" : math.floor(((result[0]/10)*965.25)/10),
+                    "Data PLC Oil Level": result[0]
+                })
+            data_json = json.dumps(named_data)
+            client.close()            
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                "data": data_json
+            })
+    except Exception as e:
+        print("Error:", str(e))
+
+#Definisikan route untuk pembacaan HP dan LP pada tiap mesin chiller
+@app.route('/read_hp_lp/<int:unit_id>', methods=['GET'])
+def read_hp_lp(unit_id):
+    try:
+        if unit_id == 3:
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1)
+            # Lakukan operasi pembacaan data
+            result = client.read_holding_registers(4, 10)
+            named_data = {}
+            if result:
+                print("Data yang dibaca dari perangkat Modbus:", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                named_data.update({
+                    "Data LP1" : math.floor((result[0]*0.1068)+33.2064),
+                    "Data LP1 2": math.floor((result[0]/6000)*870.2),
+                    "Data LP1 PLC": result[0],
+                    "Data HP1" : math.floor((result[1]*0.1068)+ 33.2064),
+                    "Data HP1 2": math.floor((result[1]/6000)*870.2),
+                    "Data HP1 PLC": result[1],
+                    
+                })
+            data_json = json.dumps(named_data)
+            client.close()            
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                "data": data_json
+            })
+    except Exception as e:
+        print("Error:", str(e))
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=5000)
