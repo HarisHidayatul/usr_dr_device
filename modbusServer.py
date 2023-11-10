@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import threading
 import json
 import math
 import requests
@@ -30,17 +31,122 @@ FUNCTIONS = {
     "Water Inlet Temperature In Cooling Mode": 2,
     "Water Outlet Temperature Setting In Cooling Mode": 21
 }
+unit_fault_message = [
+    "Reserved",
+    "Dial switch fault",
+    "RT12 sensor fault",
+    "Water flow of hot water side too small fault",
+    "communication fault with extension board",
+    "temperature of hot water side too low",
+    "Memorizer fault",
+    "Water inlet/outlet temperature sensor connected reversely",
+    "communication fault with master unit",
+    "Ambient air temperature too high/too low fault",
+    "RT8 sensor fault",
+    "RT7 sensor fault",
+    "RT6 sensor fault",
+    "Water temperature of air-conditioning side too low fault",
+    "Temperature difference between water inlet and outlet too large fault",
+    "Water flow insufficiency of air-conditioning side fault"
+]
 
+system_1fault_message = [
+    "Reserved",
+    "System 1 discharge temperature too high",
+    "VI1 sensor fault",
+    "System 1Compressor2overloadfault",
+    "System 1Compressor1overloadfault",
+    "System 1 fan fault",
+    "System 1 high pressure fault",
+    "System 1 low pressure fault",
+    "System 1 Refrigerant leakage fault",
+    "System 1 discharge temperature too high fault",
+    "System 1suction temperature too high fault",
+    "System 1suction super heat too low fault",
+    "RT1 sensor fault",
+    "RT3 sensor fault",
+    "RT9 sensor fault",
+    "RT11 sensor fault"
+]
+
+system_2fault_message = [
+    "Reserved",
+    "System 2 discharge temperature abnormal",
+    "VI2 sensor fault",
+    "System 2 Compressor 2overload fault",
+    "System 2Compressor1overload fault",
+    "System 2fan fault",
+    "System 2high pressure fault",
+    "System 2low pressure fault",
+    "System 2 Refrigerant leakage fault",
+    "System 2 discharge temperature too high fault",
+    "System 2suction temperature too high fault",
+    "System 2 suction super heat too low fault",
+    "RT2 sensor fault",
+    "RT4 sensor fault",
+    "RT10 sensor fault",
+    "RT12 sensor fault"
+]
+
+system_1_2_other_fault = [
+    "",
+    "",
+    "",
+    "",
+    "VI4 sensor fault",
+    "VI3 sensor fault",
+    "RT10 sensor fault",
+    "RT4 sensor fault",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+]
+def decimal_to_16_bit_array(n):
+    bit_array = [0] * 16  # Membuat array dengan 16 bit, diisi dengan 0
+    
+    for i in range(16):
+        bit = n & 1
+        bit_array[15 - i] = bit
+        n >>= 1
+
+    return bit_array
+
+
+def display_error_messages(bit_array, alarm_array):
+    if alarm_array == 0:
+        alarm_messages = unit_fault_message
+    elif alarm_array == 1:
+        alarm_messages = system_1fault_message
+    elif alarm_array == 2:
+        alarm_messages = system_2fault_message
+    elif alarm_array == 3:
+        alarm_messages = system_1_2_other_fault
+    else:
+        alarm_messages = []
+
+    error_messages = []
+    
+    for i, bit_value in enumerate(bit_array):
+        if bit_value and i < len(alarm_messages):
+            error_messages.append(alarm_messages[i])
+    
+    return error_messages
+            
 # Definisikan route atau endpoint untuk membaca data dari Modbus
 @app.route('/read_input_register/<int:unit_id>', methods=['GET'])
 def read_input_register(unit_id):
     try:
         if unit_id > 0 and unit_id < 7:
-            client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id)
+            client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id,timeout=0.5)
         elif unit_id == 7:
-            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=2)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=2,timeout=1)
         elif unit_id == 8:
-            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=3)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=3,timeout=1)
         elif unit_id == 9:
             response = requests.get(ARDUINO_CHILLER_SOUND)
             if response.status_code == 200:
@@ -94,16 +200,38 @@ def read_input_register(unit_id):
         if result:
             print("Data yang dibaca dari perangkat Modbus:", result)
             # Menambahkan penamaan untuk setiap elemen dalam array
+            unit_fault = result[0]
+            system1_fault = result[1]
+            system2_fault = result[2]
+            system_12fault = result[6]
             
+            # unit_fault = 3
+            # system1_fault = 4
+            # system2_fault = 10
+            # system_12fault = 6
             named_data.update({
-                "Unit Fault": result[0],
-                "System 1 Fault": result[1],
-                "System 2 Fault": result[2],
+                "Unit Fault": unit_fault,
+                "System 1 Fault": system1_fault,
+                "System 2 Fault": system2_fault,
                 "Ambient Air Temperature": result[3],
                 "Water Inlet Temperature": result[4],
                 "Water Outlet Temperature": result[5],
-                "System 1 and 2 Fault": result[6],
+                "System 1 and 2 Fault": system_12fault,
                 "Water Outlet Of Hot Water Side Temperature": result[7]
+            })
+            
+            named_data.update({
+                "Error Unit Fault": display_error_messages(decimal_to_16_bit_array(unit_fault),0),
+                # "Bit Unit Fault": decimal_to_16_bit_array(1),
+                
+                "Error System 1 Fault": display_error_messages(decimal_to_16_bit_array(system1_fault),1),
+                # "Bit System 1 Fault": decimal_to_16_bit_array(2),
+                
+                "Error System 2 Fault": display_error_messages(decimal_to_16_bit_array(system2_fault),2),
+                # "Bit System 2 Fault": decimal_to_16_bit_array(3),
+                
+                "Error System 1 2 Fault": display_error_messages(decimal_to_16_bit_array(system_12fault),3),
+                # "Bit System 1 2 Fault": decimal_to_16_bit_array(4),
             })
             # Mengubah data menjadi format JSON
         else:
@@ -155,11 +283,11 @@ def read_input_register(unit_id):
 def read_holding_register(unit_id):
     try:
         if unit_id > 0 and unit_id < 7:
-            client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id)
+            client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id,timeout=0.5)
         elif unit_id == 7:
-            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=2)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=2,timeout=0.5)
         elif unit_id == 8:
-            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=3)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=3,timeout=0.5)
         elif (unit_id == 9) or (unit_id == 10):
             response = requests.get(ARDUINO_CHILLER_SOUND)
             if response.status_code == 200:
@@ -247,7 +375,7 @@ def write_holding_register(unit_id):
         address = FUNCTIONS[function]
 
         # Tulis ke holding register menggunakan ModbusClient
-        modbus_client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id)
+        modbus_client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id,timeout=0.5)
         if not modbus_client.is_open:  # Ubah menjadi properti, bukan memanggil fungsi
             if not modbus_client.open():
                 return jsonify({"error": "Tidak dapat terhubung ke perangkat Modbus."}), 500
@@ -269,7 +397,7 @@ def write_holding_register(unit_id):
 def read_input_register_ampere(unit_id):
     try:
         if unit_id == 1 or unit_id == 2:
-            client = ModbusClient(host=AMPERE_T3, port=PORT, unit_id=unit_id)
+            client = ModbusClient(host=AMPERE_T3, port=PORT, unit_id=unit_id,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -286,7 +414,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 3:
-            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=1)
+            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=1,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -303,7 +431,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 4:
-            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=2)
+            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=2,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -320,7 +448,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 5:
-            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=3)
+            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=3,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -337,7 +465,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 6:
-            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=4)
+            client = ModbusClient(host=AMPERE_T2_T4, port=PORT, unit_id=4,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -353,8 +481,43 @@ def read_input_register_ampere(unit_id):
                 "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
                 "data": data_json
             })
+        elif unit_id == 7:
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=7,timeout=0.5)
+            # Lakukan operasi pembacaan data
+            result = client.read_input_registers(0, 2)
+            named_data = {}
+            if result:
+                print("Data yang dibaca dari perangkat Modbus:", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                named_data.update({
+                    "Ampere Meter" : result[0]
+                })
+            data_json = json.dumps(named_data)
+            client.close()            
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                "data": data_json
+            })
+        elif unit_id == 8:
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=8,timeout=0.5)
+            # Lakukan operasi pembacaan data
+            result = client.read_input_registers(0, 2)
+            named_data = {}
+            if result:
+                print("Data yang dibaca dari perangkat Modbus:", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                named_data.update({
+                    "Ampere Meter" : result[0]
+                })
+            data_json = json.dumps(named_data)
+            client.close()            
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                "data": data_json
+            })
+            
         elif unit_id == 9:
-            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=4)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=4,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -371,7 +534,7 @@ def read_input_register_ampere(unit_id):
                 "data": data_json
             })
         elif unit_id == 10:
-            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=5)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=5,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_input_registers(0, 2)
             named_data = {}
@@ -396,7 +559,7 @@ def read_input_register_ampere(unit_id):
 def read_level_water_tank(unit_id):
     try:
         if unit_id == 3:
-            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1)
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_holding_registers(60, 10)
             named_data = {}
@@ -421,7 +584,7 @@ def read_level_water_tank(unit_id):
 def read_oil_level(unit_id):
     try:
         if unit_id == 3:
-            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1)
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_holding_registers(72, 10)
             named_data = {}
@@ -446,7 +609,7 @@ def read_oil_level(unit_id):
 def read_hp_lp(unit_id):
     try:
         if unit_id == 3:
-            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1)
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=0.5)
             # Lakukan operasi pembacaan data
             result = client.read_holding_registers(4, 10)
             named_data = {}
@@ -461,6 +624,33 @@ def read_hp_lp(unit_id):
                     "Data HP1 2": math.floor((result[1]/6000)*870.2),
                     "Data HP1 PLC": result[1],
                     
+                })
+            data_json = json.dumps(named_data)
+            client.close()            
+            return jsonify({
+                "message": f"Berhasil terhubung ke perangkat Modbus dengan Unit ID {unit_id}",
+                "data": data_json
+            })
+    except Exception as e:
+        print("Error:", str(e))
+
+@app.route('/read_plc_data/<int:unit_id>', methods=['GET'])
+def read_plc_data(unit_id):
+    try:
+        if unit_id == 3:
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=0.5)
+            # Lakukan operasi pembacaan data
+            result = client.read_holding_registers(900, 10)
+            named_data = {}
+            if result:
+                print("Data yang dibaca dari perangkat Modbus:", result)
+                # Menambahkan penamaan untuk setiap elemen dalam array
+                named_data.update({
+                    "Data LP1" : math.floor((result[2]*0.1068)+33.2064),
+                    "Data HP1" : math.floor((result[3]*0.1068)+ 33.2064),
+                    "Water Level": result[0],
+                    "Oil Level":  math.floor(((result[1]/10)*965.25)/10),
+                    "PLC":"T4"
                 })
             data_json = json.dumps(named_data)
             client.close()            
