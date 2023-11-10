@@ -5,5 +5,5 @@ on_off_status,0,1,1,1,1,1,0,1
 unit_fault,0,0,0,0,0,0,0,0
 system_1fault,0,0,0,0,0,0,0,0
 system_2fault,0,0,0,0,0,0,0,0
-system_1_2_other_fault,0,12,48,48,48,48,0,0
+system_1_2_other_fault,0,48,12,36,36,48,0,48
 setting_temp_chiller,0,130,150,150,120,110,0,110

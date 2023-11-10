@@ -142,7 +142,7 @@ def overwrite_csv(file_path, target_row_index, target_column_index, new_value):
 
 def loop_program():
     # Ganti 'nama_file.csv' dengan nama file CSV yang ingin Anda baca
-    file_path = 'alarm_temp.csv'
+    file_path = 'chiller_board.csv'
 
     csv_2d_array = read_csv_to_2d_array(file_path)
     message_all = []
@@ -285,7 +285,7 @@ def loop_program():
 if __name__ == "__main__":
     while True:
         loop_program()
-        file_path = 'alarm_temp.csv'
+        file_path = 'chiller_board.csv'
         csv_2d_array = read_csv_to_2d_array(file_path)    
         # Menampilkan data dengan menggunakan loop dan index
         for i in range(len(csv_2d_array)):

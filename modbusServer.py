@@ -14,6 +14,7 @@ app = Flask(__name__)
 HOST_CHILLER_T3_T4_T2 = '192.168.2.101'
 # HOST_CHILLER_T1_AMP_T1_SND = '192.168.1.219'
 HOST_CHILLER_T1_AMP_T1_SND = '192.168.2.102'
+# 150
 # PLC_CHILLER_T4 = '192.168.1.243'
 PLC_CHILLER_T4 = '192.168.2.103'
 # AMPERE_T2_T4 = '192.168.1.228'
@@ -144,9 +145,9 @@ def read_input_register(unit_id):
         if unit_id > 0 and unit_id < 7:
             client = ModbusClient(host=HOST_CHILLER_T3_T4_T2, port=PORT, unit_id=unit_id,timeout=0.5)
         elif unit_id == 7:
-            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=2,timeout=1)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=2,timeout=3)
         elif unit_id == 8:
-            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=3,timeout=1)
+            client = ModbusClient(host=HOST_CHILLER_T1_AMP_T1_SND, port=PORT, unit_id=3)
         elif unit_id == 9:
             response = requests.get(ARDUINO_CHILLER_SOUND)
             if response.status_code == 200:
@@ -559,7 +560,7 @@ def read_input_register_ampere(unit_id):
 def read_level_water_tank(unit_id):
     try:
         if unit_id == 3:
-            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=0.5)
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=3)
             # Lakukan operasi pembacaan data
             result = client.read_holding_registers(60, 10)
             named_data = {}
@@ -584,7 +585,7 @@ def read_level_water_tank(unit_id):
 def read_oil_level(unit_id):
     try:
         if unit_id == 3:
-            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=0.5)
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=3)
             # Lakukan operasi pembacaan data
             result = client.read_holding_registers(72, 10)
             named_data = {}
@@ -609,7 +610,7 @@ def read_oil_level(unit_id):
 def read_hp_lp(unit_id):
     try:
         if unit_id == 3:
-            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=0.5)
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=3)
             # Lakukan operasi pembacaan data
             result = client.read_holding_registers(4, 10)
             named_data = {}
@@ -638,7 +639,7 @@ def read_hp_lp(unit_id):
 def read_plc_data(unit_id):
     try:
         if unit_id == 3:
-            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=0.5)
+            client = ModbusClient(host=PLC_CHILLER_T4, port=PORT, unit_id=1,timeout=3)
             # Lakukan operasi pembacaan data
             result = client.read_holding_registers(900, 10)
             named_data = {}
