@@ -140,7 +140,7 @@ def overwrite_csv(file_path, target_row_index, target_column_index, new_value):
     else:
         print(f"Indeks baris {target_row_index} atau kolom {target_column_index} diluar batas.")
 
-def loop_program():
+def loop_chiller_board(file_path):
     # Ganti 'nama_file.csv' dengan nama file CSV yang ingin Anda baca
     file_path = 'chiller_board.csv'
 
@@ -157,112 +157,138 @@ def loop_program():
             outlet_temperature = 0
             #Lakukan baca data pada area input register
             client = ModbusClient(host=IP, port=502, unit_id=int(Address),timeout=1)
-            result = client.read_input_registers(2000, 8)
-            # print(csv_2d_array[0][i+1])
-            if result:
-                # print(csv_2d_array[0][i+1])
-                unit_fault = int(result[0])
-                system1_fault = int(result[1])
-                system2_fault = int(result[2])
-                system_12fault = int(result[6])
-                
-                inlet_temperature = int(result[4])
-                outlet_temperature = int(result[5])
-                
-                unit_fault_csv = int(csv_2d_array[4][i+1])
-                system1_fault_csv = int(csv_2d_array[5][i+1])
-                system2_fault_csv = int(csv_2d_array[6][i+1])
-                system_12fault_csv = int(csv_2d_array[7][i+1])
-                
-                if(unit_fault != unit_fault_csv):
-                    overwrite_csv(file_path,4,i+1,unit_fault)
-                    array_all_error = display_error_messages(decimal_to_16_bit_array(unit_fault),0)
-                    temp_list_error = []
-                    for list_error in array_all_error:
-                        if list_error:
-                            temp_list_error.append(list_error)
-                    if len(temp_list_error) > 0:
-                        message_chiller.append('Error : Terjadi Error Pada Unit Fault')
-                        for loop_error in temp_list_error:
-                            message_chiller.append(loop_error)
-                        message_chiller.append('')
-                    # print('error, unit fault')
-                if(system1_fault != system1_fault_csv):
-                    overwrite_csv(file_path,5,i+1,system1_fault)
-                    array_all_error = display_error_messages(decimal_to_16_bit_array(system1_fault),1)
-                    temp_list_error = []
-                    for list_error in array_all_error:
-                        if list_error:
-                            temp_list_error.append(list_error)
-                    if len(temp_list_error) > 0:
-                        message_chiller.append('Error : Terjadi Error Pada System 1 Fault')
-                        for loop_error in temp_list_error:
-                            message_chiller.append(loop_error)
-                        message_chiller.append('')
-                    # print('error, system 1 fault')
-                if(system2_fault != system2_fault_csv):
-                    overwrite_csv(file_path,6,i+1,system2_fault)
-                    array_all_error = display_error_messages(decimal_to_16_bit_array(system2_fault),2)
-                    temp_list_error = []
-                    for list_error in array_all_error:
-                        if list_error:
-                            temp_list_error.append(list_error)
-                    if len(temp_list_error) > 0:
-                        message_chiller.append('Error : Terjadi Error Pada System 2 Fault')
-                        for loop_error in temp_list_error:
-                            message_chiller.append(loop_error)
-                        message_chiller.append('')
-                    # print('error, system 2 fault')
-                if(system_12fault != system_12fault_csv):
-                    overwrite_csv(file_path,7,i+1,system_12fault)
-                    array_all_error = display_error_messages(decimal_to_16_bit_array(system_12fault),3)
-                    temp_list_error = []
-                    for list_error in array_all_error:
-                        if list_error:
-                            temp_list_error.append(list_error)
-                    if len(temp_list_error) > 0:
-                        message_chiller.append('Error : Terjadi Error Pada System 1 2 Fault')
-                        for loop_error in temp_list_error:
-                            message_chiller.append(loop_error)
-                        message_chiller.append('')
-                    # print('error, system 1 2 fault')
             
-            #Lakukan baca data pada area holding register untuk mengecek mesin ON/OFF
-            result = client.read_holding_registers(0, 5)
-            if result:
-                on_off_status = int(result[0])
-                set_temp_chiller = int(result[2])
+            if client.open():
+                result = client.read_input_registers(2000, 8)
+                # print(csv_2d_array[0][i+1])
+                if result:
+                    # print(csv_2d_array[0][i+1])
+                    unit_fault = int(result[0])
+                    system1_fault = int(result[1])
+                    system2_fault = int(result[2])
+                    system_12fault = int(result[6])
                 
-                on_off_status_csv = int(csv_2d_array[3][i+1])
-                set_temp_chiller_csv = int(csv_2d_array[8][i+1])
+                    unit_fault_csv = int(csv_2d_array[4][i+1])
+                    system1_fault_csv = int(csv_2d_array[5][i+1])
+                    system2_fault_csv = int(csv_2d_array[6][i+1])
+                    system_12fault_csv = int(csv_2d_array[7][i+1])
                 
-                if(on_off_status != on_off_status_csv):
-                    overwrite_csv(file_path,3,i+1,on_off_status)
-                    # print('System on/off')
-                    if(on_off_status == 1):
-                        set_temp_chiller_float = set_temp_chiller/10
-                        message_chiller.append('Chiller ON')
-                        message_chiller.append(f'Settingan Suhu Pada Mesin : {set_temp_chiller_float}')
-                    if(on_off_status == 0):
-                        message_chiller.append('Chiller OFF')
-                    inlet_temperature_float = inlet_temperature/10
-                    outlet_temperature_float = outlet_temperature/10
-                    message_chiller.append(f'Suhu inlet : {inlet_temperature_float}')
-                    message_chiller.append(f'Suhu outlet : {outlet_temperature_float}')
-                    message_chiller.append('')
-                    
-                if(on_off_status == 1):
-                    if(set_temp_chiller != set_temp_chiller_csv):
-                        overwrite_csv(file_path,8,i+1,set_temp_chiller)
-                        set_temp_chiller_float = set_temp_chiller/10
-                        set_temp_chiller_csv_float = set_temp_chiller_csv/10
-                        message_chiller.append(f'Terjadi perubahan suhu setting chiller dari {set_temp_chiller_csv_float} menjadi {set_temp_chiller_float}')
+                    inlet_temperature = int(result[4])
+                    outlet_temperature = int(result[5])
+                    ambient_air_temperature = int(result[3])
+                
+                    overwrite_csv(file_path,13,i+1,inlet_temperature)
+                    overwrite_csv(file_path,14,i+1,outlet_temperature)
+                    overwrite_csv(file_path,12,i+1,ambient_air_temperature)
+                
+                
+                    if(unit_fault != unit_fault_csv):
+                        overwrite_csv(file_path,4,i+1,unit_fault)
+                        array_all_error = display_error_messages(decimal_to_16_bit_array(unit_fault),0)
+                        temp_list_error = []
+                        for list_error in array_all_error:
+                            if list_error:
+                                temp_list_error.append(list_error)
+                        if len(temp_list_error) > 0:
+                            message_chiller.append('Error : Terjadi Error Pada Unit Fault')
+                            for loop_error in temp_list_error:
+                                message_chiller.append(loop_error)
+                            message_chiller.append('')
+                        # print('error, unit fault')
+                    if(system1_fault != system1_fault_csv):
+                        overwrite_csv(file_path,5,i+1,system1_fault)
+                        array_all_error = display_error_messages(decimal_to_16_bit_array(system1_fault),1)
+                        temp_list_error = []
+                        for list_error in array_all_error:
+                            if list_error:
+                                temp_list_error.append(list_error)
+                        if len(temp_list_error) > 0:
+                            message_chiller.append('Error : Terjadi Error Pada System 1 Fault')
+                            for loop_error in temp_list_error:
+                                message_chiller.append(loop_error)
+                            message_chiller.append('')
+                        # print('error, system 1 fault')
+                    if(system2_fault != system2_fault_csv):
+                        overwrite_csv(file_path,6,i+1,system2_fault)
+                        array_all_error = display_error_messages(decimal_to_16_bit_array(system2_fault),2)
+                        temp_list_error = []
+                        for list_error in array_all_error:
+                            if list_error:
+                                temp_list_error.append(list_error)
+                        if len(temp_list_error) > 0:
+                            message_chiller.append('Error : Terjadi Error Pada System 2 Fault')
+                            for loop_error in temp_list_error:
+                                message_chiller.append(loop_error)
+                            message_chiller.append('')
+                        # print('error, system 2 fault')
+                    if(system_12fault != system_12fault_csv):
+                        overwrite_csv(file_path,7,i+1,system_12fault)
+                        array_all_error = display_error_messages(decimal_to_16_bit_array(system_12fault),3)
+                        temp_list_error = []
+                        for list_error in array_all_error:
+                            if list_error:
+                                temp_list_error.append(list_error)
+                        if len(temp_list_error) > 0:
+                            message_chiller.append('Error : Terjadi Error Pada System 1 2 Fault')
+                            for loop_error in temp_list_error:
+                                message_chiller.append(loop_error)
+                            message_chiller.append('')
+                        # print('error, system 1 2 fault')
+            
+                #Lakukan baca data untuk mendapatkan data setting water outlet
+                result = client.read_input_registers(5005, 1)
+                if result:
+                    water_outlet_set_in_cooling = result[0]
+                    overwrite_csv(file_path,11,i+1,water_outlet_set_in_cooling)
+            
+                #Lakukan baca data untuk mendapatkan data compressor ratio
+                result = client.read_input_registers(5010, 1)
+                if result:
+                    compressor_output_ratio = result[0]
+                    overwrite_csv(file_path,9,i+1,compressor_output_ratio)
+            
+                #Lakukan baca data pada area holding register untuk mengecek mesin ON/OFF
+                result = client.read_holding_registers(0, 5)
+                if result:
+                    on_off_status = int(result[0])
+                    set_temp_chiller = int(result[2])
+                    set_temp_chiller_in_heating = int(result[3])
+                
+                    on_off_status_csv = int(csv_2d_array[3][i+1])
+                    set_temp_chiller_csv = int(csv_2d_array[8][i+1])
+                
+                    overwrite_csv(file_path,8,i+1,set_temp_chiller)
+                    overwrite_csv(file_path,10,i+1,set_temp_chiller_in_heating)
+                
+                    if(on_off_status != on_off_status_csv):
+                        overwrite_csv(file_path,3,i+1,on_off_status)
+                        # print('System on/off')
+                        if(on_off_status == 1):
+                            set_temp_chiller_float = set_temp_chiller/10
+                            message_chiller.append('Chiller ON')
+                            message_chiller.append(f'Settingan Suhu Pada Mesin : {set_temp_chiller_float}')
+                        if(on_off_status == 0):
+                            message_chiller.append('Chiller OFF')
+                        inlet_temperature_float = inlet_temperature/10
+                        outlet_temperature_float = outlet_temperature/10
+                        message_chiller.append(f'Suhu inlet : {inlet_temperature_float}')
+                        message_chiller.append(f'Suhu outlet : {outlet_temperature_float}')
                         message_chiller.append('')
+                    
+                    if(on_off_status == 1):
+                        if(set_temp_chiller != set_temp_chiller_csv):
+                            set_temp_chiller_float = set_temp_chiller/10
+                            set_temp_chiller_csv_float = set_temp_chiller_csv/10
+                            message_chiller.append(f'Terjadi perubahan suhu setting chiller dari {set_temp_chiller_csv_float} menjadi {set_temp_chiller_float}')
+                            message_chiller.append('')
                 
-                if len(message_chiller) > 0:
-                    message_all.append(f'*Chiller : {csv_2d_array[0][i+1]}*')
-                    for loop_message in message_chiller:
-                        message_all.append(loop_message)
+                    if len(message_chiller) > 0:
+                        message_all.append(f'*Chiller : {csv_2d_array[0][i+1]}*')
+                        for loop_message in message_chiller:
+                            message_all.append(loop_message)
+                client.close()
+            else:
+                # overwrite_csv(file_path,13,i+1,inlet_temperature)
     
     message_text = ''
     # print(message_all)
@@ -284,8 +310,8 @@ def loop_program():
                         
 if __name__ == "__main__":
     while True:
-        loop_program()
         file_path = 'chiller_board.csv'
+        loop_chiller_board(file_path)
         csv_2d_array = read_csv_to_2d_array(file_path)    
         # Menampilkan data dengan menggunakan loop dan index
         for i in range(len(csv_2d_array)):
